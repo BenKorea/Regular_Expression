@@ -1,0 +1,201 @@
+---
+title: "Regular Expression"
+description:  "Example how to use regular expression in R"
+author: "RPythonStudyGroup feat. ChatGPT"
+date: "2024-12-09"
+date-modified: "2024-12-09"
+categories:
+  - R
+  - Regular Expression
+  - Example
+---
+
+### R에서의 정규 표현식(Regular Expression, Regex)이란 ?
+
+-   문자열에서 특정 패턴을 찾거나 조작하기 위해 사용되는 문자와 기호의 조합입니다.
+-   텍스트 데이터 처리를 효율적으로 수행할 수 있게 합니다.
+-   주로 stringr 패키지와 base R의 문자열 관련 함수에서 지원됩니다.
+
+### R에서의 정규 표현식 관련 함수
+
+-   Base R 함수
+    -   grep(pattern, x): 특정 패턴에 매칭되는 항목의 인덱스를 반환.
+    -   grepl(pattern, x): 매칭 여부를 논리값(TRUE/FALSE)으로 반환.
+    -   sub(pattern, replacement, x): 패턴에 매칭되는 첫 번째 항목을 다른 문자열로 대체.
+    -   gsub(pattern, replacement, x): 패턴에 매칭되는 모든 항목을 다른 문자열로 대체.
+    -   regexpr(pattern, x): 패턴의 위치를 반환.
+    -   gregexpr(pattern, x): 매칭되는 모든 패턴의 위치를 반환.
+-   stringr 패키지 함수
+    -   str_detect(): 매칭 여부를 논리값으로 반환.
+    -   str_subset(): 특정 패턴과 매칭되는 항목만 추출.
+    -   str_extract(): 매칭된 첫 번째 문자열을 추출.
+    -   str_extract_all(): 매칭된 모든 문자열을 추출.
+    -   str_replace(): 패턴에 매칭되는 첫 번째 항목을 다른 문자열로 대체.
+    -   str_replace_all(): 패턴에 매칭되는 모든 항목을 다른 문자열로 대체.
+
+### 정규 표현식 기본 패턴 (아래의 예시와 매칭이 되지 않아 수정이 필요합니다)
+
+| 패턴     | 의미                        |
+|----------|-----------------------------|
+| `.`      | 임의의 한 문자              |
+| `^`      | 문자열의 시작               |
+| `$`      | 문자열의 끝                 |
+| `*`      | 0번 이상 반복               |
+| `+`      | 1번 이상 반복               |
+| `?`      | 0번 또는 1번                |
+| `{n}`    | 정확히 n번 반복             |
+| `{n,}`   | n번 이상 반복               |
+| `{n,m}`  | n번 이상, m번 이하 반복     |
+| `[...]`  | 대괄호 내 문자들 중 하나    |
+| `[^...]` | 대괄호 내 문자 제외         |
+| `\\d`    | 숫자                        |
+| `\\D`    | 숫자가 아닌 문자            |
+| `\\w`    | 단어 문자(영문자, 숫자, \_) |
+| `\\W`    | 단어 문자가 아닌 것         |
+| `\\s`    | 공백 문자                   |
+| `\\S`    | 공백이 아닌 문자            |
+| `|`      | OR 연산                     |
+| `()`     | 그룹핑                      |
+
+### 실제예시
+
+-   R에서의 regular expression의 활용에 대한 이해를 돕기 위해 실제 사용 예시를 나열합니다.
+
+#### 텍스트 데이터
+
+-   다음은 갑상선암 외래 진료시 EMR의 일부를 보여 드립니다.
+
+```{r outpatient_EMR, eval=FALSE, filename="외래진료기록"}
+#| code-line-numbers: true
+      2018-12-05   Thyroid_CT cN1b
+      2019-01-22   TTcND_Lt.SND LGH
+#1. PTC(Lt_x2 Rt_x1) T1b(1.1cm ETE+ BRAF-) N1b(1/2, 7/22 ENE+) M1(Lung_focal)
+      2019-02-11   Tg/TgAb/TSH   -/-/1.36
+      2019-04-08   rhTSH I-131 100 mCi (#1, remnant/RLL, Tg/TgAb/TSH 21.3/-/100)
+      2020-04-01   rhTSH I-123_Dx.WBS/Tg/TgAb/TSH(100)
+```
+
+-   저자는 이를 파싱해서 데이터베이스로 만드는 중입니다. 그래서 사전에 미리 정한 규칙에 따라 EMR 텍스트들을 작성하였습니다 (물론 규칙이 변하기도 하고, 아직 적용되지 않은 환자들도 있고 많은 변수들이 자리잡고 있기는 합니다.) 그러면 EMR 텍스트데이터가 어떤 규칙으로 작성되었는지를 설명드리겠습니다.
+
+    -   1번줄은 수술전 병기설정을 위해 시행된 영상검사를 위한 줄입니다.
+        -   날짜와 영상검사종류와 clinical N stage를 기술하였습니다.
+        -   가시성을 위해 공백6개 뒤에 날짜가 오고 다시 공백3개 뒤에 영상검사명이 오고 다시 공백3개 뒤에 clinical N staging 기술이 옵니다.
+        -   수술 전 영상검사가 외부병원에서 시행되었다면 \@ 외부병원약칭을 사용하였습니다. 이 경우 수술의사에 대한 기술은 없습니다.
+        -   만약 수술 전 영상검사가 없거나 정보를 구할 수 없다면 이 줄은 없습니다.
+    -   2번줄은 수술종류와 수술의사를 기술하였습니다. 역시 공백으로 구분되어 있으며
+    -   3번줄은 staging을 기술하였습니다.
+        -   `#1.`은 첫번째 상병으로 저에게는 갑상선암입니다.
+        -   공백을 두고 histologic subtype을 사전에 정의한 알파벳으로 시작하는 약자로 기술하였습니다.
+            -   연이은 괄호안에는 일차병소의 위치와 갯수를 기술하였습니다. 위치는 Rt, Lt, isthmus등 알파벳으로 시작하고 갯수는 \_와 숫자로 연결되어 있으며 위치가 때로는 한 곳, 때로는 3곳이 될 수 도 있습니다.
+        -   공백을 두고 pathologic T staging을 기술한 후 괄호안에 관련예후인자들을 기술하였습니다.
+            -   괄호안에서는 N1a와 N1b 정보를 `,`로 구분했습니다.
+                -   N1a에서는 몇개의 림프절을 절제해서 몇개가 양성이었는지를 기술했습니다. 만약 extranodal extension이 있다면 공백을 두고 `ENE+`를 추가했습니다.
+                -   N1b의 경우도 같은 방식으로 기술했습니다.
+        -   공백을 두고 M staging을 기술하였습니다. 없다면 하지 않았습니다.
+            -   괄호안에서 어떤 organ에 전이가 있었는지를 기술하고 필요한 경우 `_`함께 그 양상이 diffuse 하였는지 focal 하였는지를 기술하였습니다.
+    -   4번줄은 수술이후 방사성요오드치료를 하기 전에 시행된 갑상선기능검사의 주요항목을 기술하였습니다.
+        -   날짜와 항목과 그 값들을 공백을 먼저 구분하였고 `/`기호를 사용하여 세분화하였습니다.
+    -   5번줄은 방사성요오드치료의 정보에 대해 기술하였습니다.
+        -   먼저 날짜가 오고
+        -   공백이후 rhTSH는 recombinant human TSH의 사용여부를 약자로 표시한 것입니다. 시행되지 않았으면 기술이 없습니다.
+        -   공백이후 I-131 치료 용량을 기술하였습니다.
+        -   괄호내부에서는 회차를 #연결하여 기술하였고, `,` 뒤에는 치료스캔에서의 섭취양상을 기술하고 필요시 `/`를 추가하여 위치를 기술하였습니다. 다시 `,` 뒤에는 치료하는 날이 갑상선기능검사의 주요항목을 기술하였습니다.)
+    -   6번줄은 치료 일년 후 정도에 시행하여 방사성요오드진단스캔에 대한 정보를 기술했습니다.
+        -   날짜
+        -   진단스캔의 준비에 recombinant human TSH의 사용여부를 약자로 표시
+        -   다음은 진단스캔이 I-131로 되었는데 I-123으로 되었는지를 구분하였고,
+        -   `/`로 각 항목을 구분하였는데
+        -   만약 각 항목에 그 값이 음성이 아닌라서 데이터베이스에 입력할 필요가 있다면 `()`안에 기술하였습니다.
+    -   참고로 위하여 추가 설명을 하자면 EMR을 데이테베이스로 하기 위해서 저자가 선택한 전략을 `관심환자`기능을 사용하는 것이었습니다.
+        -   분류명과 특기사항을 입력할 수 있으며 입력된 데이터를 엑셀로 일괄다운로드하여 활용할 수 있기 때문입니다.
+        -   예를 들어서,
+            -   분류명에는 수술관련예후인자라 입력하고, 특기사항에는 1번줄부터 3번줄까지 입력하는 것입니다. (우리병원의 관심환자기능은 입력글자수 제한이 있어 더 이상은 무리입니다.)
+
+            -   분류명에는 방사성요오드치료, 특기사항에는 4\~5번줄을 입력하는 것입니다.
+
+            -   분류명에는 방사성요오드진단스캔, 특기사항에는 6번줄을 입력하는 것입니다.
+
+            -   실제로 저자가 구현한 것은 이보다 더 복잡하지만 설명을 위해서 단순화한 것임을 참고하시길 바랍니다.
+            
+#### 한줄씩 분리하기
+
+-   수술관련예후인자를 data.table로 만들었으며 당연히 `특기사항` 열(=항목)에는 2줄 또는 3줄로 구성된 데이터가 있습니다.
+-   이 data.table을 인자로 받아서 특기사항의 한줄씩 분리하고 새로운 항목명을 부여한여 만든 새로운 data.table을 반환하는 함수를 만들어 진행하였습니다.
+
+```{r my_splilt_lines_for_risk_data, eval=FALSE, filename="my_splilt_lines_for_risk_data function"}
+
+my_splilt_lines_for_risk_data <- function(dt) {
+
+  dt[, line_count := str_count(특기사항, "\n") + 1]
+  if (input_error_checking_mode == "Y") {
+    risk_data_line_count_errors <<- dt[line_count >= 4 | line_count == 1]
+  }
+  dt <- dt[line_count == 3 | line_count == 2]
+  dt[line_count == 3, c("cN_line", "op_line", "stage_line") := tstrsplit(특기사항, split = "\n", fixed = TRUE, fill = NA)]
+  dt[line_count == 2, c("op_line", "stage_line") := tstrsplit(특기사항, split = "\n", fixed = TRUE, fill = NA)]
+  
+  dt[, cN_line := my_clean_string_edges(cN_line)]
+  dt[, op_line := my_clean_string_edges(op_line)]
+  dt[, stage_line := my_clean_string_edges(stage_line)]
+  
+  if (input_error_checking_mode == "Y") {
+    risk_data_op_line_error <<- dt[!grepl("^[0-9]", dt$op_line), ]
+  }
+  dt <- dt[grepl("^[0-9]", dt$op_line), ]
+  
+  return(dt)
+}
+
+```
+
+-   특기사항에 줄바꿈(`"\n"`)이 몇개가 포함되었는지를 알아내기 위해 str_count란 함수를 사용하였고 그 결과로 새로운 `line_count`열을 만들었습니다. data.table을 사용하여 문법이 다소 어렵지만 데이터가 큰 경우 속도가 빨라 장점이 많습니다.
+-   저는 프로젝트 내에서 input_error_checking_mode라는 변수를 만들고 `Y` 설정에서는 ENviroment pane에서 확인할 수 있도록 하였고, 오류가 없다고 생각될 때에는 `N`으로 설정하여 속도를 빠르게 하도록 하였습니다.
+-   특기사항을 줄단위로 분리하기 위해서 `tstrsplit`함수를 사용하였습니다. 이 함수는 `data.table`에 포함된 함수로 `strsplit`함수와 유사하게 작동합니다.
+-   3줄일 때는 cN_line열까지 만들고, 2줄일 때는 op_line열과 stage_line열을 만들도록 하였습니다.
+-   각 열에 있는 문자열의 양쪽 공백을 제거하기 위해서 `my_clean_string_edges`함수를 사용하였습니다.
+-   op_line 항목 내에서는 숫자로 시작하지 않으면 `risk_data_op_line_error` 데이터셋으로 별도로 구분되어 보이도록 하였습니다.
+-   반환되는 값은 op_line 항목이 숫자로 시작되는 것들만 반환하도록 하였습니다.
+
+#### 공백으로 분리하기
+
+- cN_line열을 공백으로 분리하여 새로운 열을 만들어 반환하는 함수를 만들었습니다.
+
+```{r my_parsing_cN_line, eval=FALSE, filename="my_parsing_cN_line function"}
+my_parsing_cN_line <- function(dt) {
+  
+  dt$cN_date <- tstrsplit(dt$cN_line, "\\s+", fixed = FALSE, fill = NA, type.convert = TRUE)[[1]]
+  dt$cN_modality <- tstrsplit(dt$cN_line, "\\s+", fixed = FALSE, fill = NA, type.convert = TRUE)[[2]]
+  dt$cN <- tstrsplit(dt$cN_line, "\\s+", fixed = FALSE, fill = NA, type.convert = TRUE)[[3]]
+  # "PCNA (+)"가 있으면 dt$PCNA를 "Positiv"로 파생  
+  dt$PCNA <- ifelse(grepl("PCNA \\(\\+\\)", dt$cN_line), "Positive", NA)
+  # &가 있으면 이후를 PETCT_part로 파생
+  dt$PETCT_part <- ifelse(grepl("&", dt$cN_line), sub(".*&\\s*", "", dt$cN_line), NA)
+  dt$PETCT_date <- tstrsplit(dt$PETCT_part, "\\s+", fixed = FALSE, fill = NA, type.convert = TRUE)[[1]]  
+  dt$Thyroid_SUVmax <- tstrsplit(dt$PETCT_part, "\\s+", fixed = FALSE, fill = NA, type.convert = TRUE)[[3]]
+  dt$Thyroid_SUVmax <- sub("Thyroid=", "", dt$Thyroid_SUVmax)
+  dt$Thyroid_SUVmax <- sub(",", "", dt$Thyroid_SUVmax)
+  dt$PETCT_Metastasis <- tstrsplit(dt$PETCT_part, "\\s+", fixed = FALSE, fill = NA, type.convert = TRUE)[[4]]
+  dt$PETCT_Metastasis_SUVmax <- tstrsplit(dt$PETCT_part, "\\s+", fixed = FALSE, fill = NA, type.convert = TRUE)[[5]]
+  dt$PETCT_Metastasis<-paste0(dt$PETCT_Metastasis,".",dt$PETCT_Metastasis_SUVmax)
+  dt$PETCT_Metastasis_SUVmax <- ifelse(grepl("=", dt$PETCT_Metastasis), sub(".*=\\s*", "", dt$PETCT_Metastasis), NA)
+  dt$PETCT_Metastasis <- ifelse(grepl("=", dt$PETCT_Metastasis), sub("\\s*=.*", "", dt$PETCT_Metastasis), NA)
+  
+  dt[, cN_date := as.Date(cN_date, format="%Y-%m-%d", try = TRUE)]
+  if (input_error_checking_mode == "Y") {
+    risk_data_cN_date_error <<- dt[is.na(cN_date) & line_count==3]
+  }
+  dt <- dt[!(is.na(cN_date) & line_count==3)]
+  
+  if (input_error_checking_mode == "Y") {
+    risk_data_cN_error <<- dt[!cN %in% c("cN0", "cN1a", "cN1b", "cN1", NA,"pN0", "pN1a", "pN1b", "pN1")]
+  }
+  dt <- dt[cN %in% c("cN0", "cN1a", "cN1b", "cN1", NA,"pN0", "pN1a", "pN1b", "pN1")]
+  
+  return(dt)
+}
+```
+-   `tstrsplit`함수를 사용하였고, "\\s+" 정규식을 사용하여 공백이 한번이상 반복되면 분리하였고 첫번째 `df$cN_date`라는 날짜로 하였습니다.
+-   `tstrsplit`함수가 분리해 주는 두 번째는 영상검사종류로 하였습니다.
+-   세 번째는 clinical N stage로 하였습니다.
+-   앞서의 예시에는 없었지만 PCNA(+)가 있다면 이는 cN stage에 대해 PCNA가 시행되었고 그 결과가 양성임을 저자가 정의한 것입니다. 이를 의미합므로 한 추가 정보로 "Positive"로 파생하였습니다.
+    -   정규식에서 괄호는 그룹핑을 의미합니다. 따라서 괄호 그 자체를 표현하기 위해서는 escape 문자인 역슬래시를 두 번 사용해서 `PCNA \\(\\+\\)`를 사용하였습니다.
