@@ -10,13 +10,13 @@ categories:
   - Example
 ---
 
-### R에서의 정규 표현식(Regular Expression, Regex)이란 ?
+### 정규표현식?
 
 -   문자열에서 특정 패턴을 찾거나 조작하기 위해 사용되는 문자와 기호의 조합입니다.
 -   텍스트 데이터 처리를 효율적으로 수행할 수 있게 합니다.
 -   주로 stringr 패키지와 base R의 문자열 관련 함수에서 지원됩니다.
 
-### R에서의 정규 표현식 관련 함수
+### 관련함수
 
 -   Base R 함수
     -   grep(pattern, x): 특정 패턴에 매칭되는 항목의 인덱스를 반환.
@@ -33,7 +33,8 @@ categories:
     -   str_replace(): 패턴에 매칭되는 첫 번째 항목을 다른 문자열로 대체.
     -   str_replace_all(): 패턴에 매칭되는 모든 항목을 다른 문자열로 대체.
 
-### 정규 표현식 기본 패턴 (아래의 예시와 매칭이 되지 않아 수정이 필요합니다)
+### 기본패턴
+-   아래의 예시와 매칭이 되지 않아 수정이 필요합니다
 
 | 패턴     | 의미                        |
 |----------|-----------------------------|
@@ -57,19 +58,18 @@ categories:
 | `|`      | OR 연산                     |
 | `()`     | 그룹핑                      |
 
-### 실제예시
 
 -   R에서의 regular expression의 활용에 대한 이해를 돕기 위해 실제 사용 예시를 나열합니다.
 
-#### 텍스트 데이터
+### 텍스트예시
 
 -   다음은 갑상선암 외래 진료시 EMR의 일부를 보여 드립니다.
 
 ```{r outpatient_EMR, eval=FALSE, filename="외래진료기록"}
 #| code-line-numbers: true
-      2018-12-05   Thyroid_CT cN1b
+      2018-12-05   Thyroid_CT cN1b -> PCNA(+) & 2018-12-06 PETCT Thyroid=2.5 Lung=1.8
       2019-01-22   TTcND_Lt.SND LGH
-#1. PTC(Lt_x2 Rt_x1) T1b(1.1cm ETE+ BRAF-) N1b(1/2, 7/22 ENE+) M1(Lung_focal)
+#1. PTC(Lt_x2 Rt_x1) T1b(1.1cm ETE+ BRAF-) N1b(1/2, 7/22 ENE+ 7mm) Lt.IV_7/22 M1(Lung_focal)
       2019-02-11   Tg/TgAb/TSH   -/-/1.36
       2019-04-08   rhTSH I-131 100 mCi (#1, remnant/RLL, Tg/TgAb/TSH 21.3/-/100)
       2020-04-01   rhTSH I-123_Dx.WBS/Tg/TgAb/TSH(100)
@@ -82,6 +82,7 @@ categories:
         -   가시성을 위해 공백6개 뒤에 날짜가 오고 다시 공백3개 뒤에 영상검사명이 오고 다시 공백3개 뒤에 clinical N staging 기술이 옵니다.
         -   수술 전 영상검사가 외부병원에서 시행되었다면 \@ 외부병원약칭을 사용하였습니다. 이 경우 수술의사에 대한 기술은 없습니다.
         -   만약 수술 전 영상검사가 없거나 정보를 구할 수 없다면 이 줄은 없습니다.
+        -   만약 수술 전 PETCT 영상검사가 있었다면 `&`로 구분하고 날짜와 PETCT를 기술하였습니다. 그리고 primary 지만 clinical N stage가 없다면 이 줄은 없습니다.
     -   2번줄은 수술종류와 수술의사를 기술하였습니다. 역시 공백으로 구분되어 있으며
     -   3번줄은 staging을 기술하였습니다.
         -   `#1.`은 첫번째 상병으로 저에게는 갑상선암입니다.
@@ -117,7 +118,92 @@ categories:
 
             -   실제로 저자가 구현한 것은 이보다 더 복잡하지만 설명을 위해서 단순화한 것임을 참고하시길 바랍니다.
             
-#### 한줄씩 분리하기
+            
+### strsplit 함수
+character vector 만을 인자로 받는 base 함수입니다. character type의 data.frame  열로 내부적으로는 character vertor로 처리되므로 인자로 받아서 결과를 반환할 수 있지만 이는 리스트 형식임을 잘 이해해야 합니다. 이는 구체적인 예시로 통하면 이해에 좀 더 도움이 됩니다.
+
+```{r data.frame_example, eval=FALSE, filename="R Console"}
+
+# 데이터 생성
+patient_numbers <- c("Patient1", "Patient2", "Patient3")
+registration_dates <- c("2022-01-01", "2023-02-15", "2023-05-22")
+
+# 데이터프레임 생성
+df <- data.frame(
+  환자번호 = patient_numbers,
+  등록일 = registration_dates,
+  stringsAsFactors = FALSE  # 문자형 데이터를 팩터로 변환하지 않음
+)
+```
+
+-   위에서 생성된 df 데이터프레임의 등록일을 strsplit 함수로써 "-"을 기준으로 분리한 결과를 df의 new란 열로 파생시키는 코드의 결과를 확인해 보시길 바랍니다.
+
+```{r strsplit_example, eval=FALSE, filename="R Console"}
+
+df$new <- strsplit(df$등록일, "-")
+strsplit(df$등록일, "-")[[1]]
+strsplit(df$등록일, "-")[[1]][[1]]
+
+```
+
+
+-   df$new 열에는 연도와 월과 일이 분리되어 리스트형태로 파생되어 있습니다. 문제는 간단한 코드로 연도만 분리하여 파생시키키가 어렵다는 것입니다.
+-   strsplit 결과 리스트에서 첫번째 환자의 결과들만 접근할려면 리스트의 인덱싱 방법에 따라 [[1]]을 부연하면 됩니다.
+-   strsplit 결과 리스트에서 첫번째 환자의 첫번째 결과만 접근하려면 리스트의 인덱싱 방법에 따라 [[1]][[1]]을 부연하면 됩니다.
+-   하지만 모든 환자의 첫번째 결과들 모두 접근하는 방법은 자체적으로 지원되지 않습니다.
+-   모든 환자의 첫번째 결과들 모두 접근하기 위해 for 문법을 적용하면 아래와 같습니다.
+
+```{r for_example, eval=FALSE, filename="R Console"}
+
+df$new_year <- NA  # 빈 열 생성
+
+for (i in 1:length(df$등록일)) {
+  df$new_year[i] <- print(strsplit(df$등록일[i], "-")[[1]][1])
+}
+
+```
+
+- Enviroment pane에서 df를 확인하면 new_year 열에 연도만 파생된 것을 확인할 수 있습니다.
+- R의 장점 중의 하나인 list의 각 요소에 같은 함수를 적용할 수 있는 sapply 함수를 사용하면 for 문법을 사용하지 않고도 같은 결과를 얻을 수 있습니다.
+
+```{r sapply_example, eval=FALSE, filename="R Console"}
+
+df$new_year_by_sapply <- sapply(strsplit(df$등록일, "-"), function(x) x[[1]][1])
+
+```
+-   tstrsplit 함수는 strsplit 함수와 유사하게 작동하지만 결과를 리스트가 아닌 data.table로 반환합니다. 이는 data.table의 장점을 살려서 빠르게 처리할 수 있습니다.
+
+```{r tstrsplit_example, eval=FALSE, filename="R Console"}
+
+# data.table 패키지 설치
+# renv::install("data.table")
+
+# data.table 패키지 로드
+library(data.table)
+
+# 데이터프레임을 data.table로 변환
+# dt <- as.data.table(df)
+
+# "-"을 기준으로 분리
+df$new_by_tstrsplit <- tstrsplit(df$등록일, "-", fixed = FALSE, fill = NA, type.convert = TRUE)[[1]]
+```
+
+### tstrsplit 함수
+-   이 함수는 data.table에 포함된 함수로 strsplit 함수와 유사하게 작동합니다.
+-   하지만 첫번째 바깥층 리스트의 값을 조회해보면 strsplit와 차이가 있습니다. strsplit는 첫번째 환자의 분리된 연, 웡, 일 정보가 나오지만, tstrsplit에서는 모든 환자의 연도가 나열됩니다 마치 열과 행이 치환된 차이가 있습니다. 그런데 이는 새로운 열로 파생시키기에는 분리목적에 적합하여 한 단계를 축약한 효과가 있습니다. (`t`strsplit의 `t`는 transpositopn을 의미합니다.)
+-   tstrsplit 함수의 결과를 리스트로 반환하므로 첫번째 환자의 결과만 접근하려면 [[1]]을 부연하면 됩니다.
+-   인자 중 fixed는 정규식 해석에 대한 옵션으로 FALSE 값이면 정규식 메타문자를 인식할려면 일반적인 방법으로 escape 문자 역슬래시를 두번 사용해 주어야 한다는 것이며, 반대인 TRUE는 escape 문자 없이 메타문자를 사용한다는 의미입니다.
+-   fill은 분리된 결과의 길이가 다를 때 채워넣을 값으로 NA가 기본값이며
+- type.convert는 분리된 결과를 자동으로 형변환할 것인지에 대한 옵션으로 TRUE가 기본값입니다.
+
+```{r tstrsplit_example2, eval=FALSE, filename="R Console"}
+
+xlist <- tstrsplit(df$등록일, "-", fixed = FALSE, fill = NA, type.convert = TRUE)
+print(xlist)
+print(xlist[[1]])
+```            
+
+### 한줄씩 분리하기
 
 -   수술관련예후인자를 data.table로 만들었으며 당연히 `특기사항` 열(=항목)에는 2줄 또는 3줄로 구성된 데이터가 있습니다.
 -   이 data.table을 인자로 받아서 특기사항의 한줄씩 분리하고 새로운 항목명을 부여한여 만든 새로운 data.table을 반환하는 함수를 만들어 진행하였습니다.
@@ -153,12 +239,33 @@ my_splilt_lines_for_risk_data <- function(dt) {
 -   특기사항을 줄단위로 분리하기 위해서 `tstrsplit`함수를 사용하였습니다. 이 함수는 `data.table`에 포함된 함수로 `strsplit`함수와 유사하게 작동합니다.
 -   3줄일 때는 cN_line열까지 만들고, 2줄일 때는 op_line열과 stage_line열을 만들도록 하였습니다.
 -   각 열에 있는 문자열의 양쪽 공백을 제거하기 위해서 `my_clean_string_edges`함수를 사용하였습니다.
--   op_line 항목 내에서는 숫자로 시작하지 않으면 `risk_data_op_line_error` 데이터셋으로 별도로 구분되어 보이도록 하였습니다.
+
+```{r my_clean_string_edges, eval=FALSE, filename="my_clean_string_edges function"}
+my_clean_string_edges <- function(str) {
+  
+  # 정규식 설명:
+  # ^\\s*          : 문자열의 시작과 0개 이상의 공백 문자
+  # (?:#1)?        : '#1' 패턴이 0번 또는 1번 나타나는 부분 (캡처를 하지 않는 그룹)
+  # [.,]?          : '.' 또는 ','가 0번 또는 1번 나타나는 부분
+  # \\s*           : 다시 0개 이상의 공백 문자
+  # \\s$           : 문자열의 끝과 0개 이상의 공백 문자
+  str <- sub("^\\s*(?:#1)?[.,]?\\s*", "", str)
+  str <- gsub("\\s+$", "", str)
+  
+  return(str)
+}
+```
+
+-  `sub`함수는 문자열에서 패턴에 매칭되는 첫 번째 항목을 다른 문자열로 대체하는 함수입니다.
+-   `gsub`함수는 문자열에서 패턴에 매칭되는 모든 항목을 다른 문자열로 대체하는 함수입니다.
+
+-   op_line 항목 내에서는 `!grepl("^[0-9]"` = 숫자로 시작하지 않으면  `risk_data_op_line_error` 데이터셋으로 별도로 구분되어 보이도록 하였습니다.
 -   반환되는 값은 op_line 항목이 숫자로 시작되는 것들만 반환하도록 하였습니다.
 
-#### 공백으로 분리하기
 
-- cN_line열을 공백으로 분리하여 새로운 열을 만들어 반환하는 함수를 만들었습니다.
+### 공백으로 분리하기
+
+-   cN_line열을 공백으로 분리하여 새로운 열을 만들어 반환하는 함수를 만들었습니다.
 
 ```{r my_parsing_cN_line, eval=FALSE, filename="my_parsing_cN_line function"}
 my_parsing_cN_line <- function(dt) {
@@ -175,10 +282,8 @@ my_parsing_cN_line <- function(dt) {
   dt$Thyroid_SUVmax <- sub("Thyroid=", "", dt$Thyroid_SUVmax)
   dt$Thyroid_SUVmax <- sub(",", "", dt$Thyroid_SUVmax)
   dt$PETCT_Metastasis <- tstrsplit(dt$PETCT_part, "\\s+", fixed = FALSE, fill = NA, type.convert = TRUE)[[4]]
-  dt$PETCT_Metastasis_SUVmax <- tstrsplit(dt$PETCT_part, "\\s+", fixed = FALSE, fill = NA, type.convert = TRUE)[[5]]
-  dt$PETCT_Metastasis<-paste0(dt$PETCT_Metastasis,".",dt$PETCT_Metastasis_SUVmax)
-  dt$PETCT_Metastasis_SUVmax <- ifelse(grepl("=", dt$PETCT_Metastasis), sub(".*=\\s*", "", dt$PETCT_Metastasis), NA)
-  dt$PETCT_Metastasis <- ifelse(grepl("=", dt$PETCT_Metastasis), sub("\\s*=.*", "", dt$PETCT_Metastasis), NA)
+  dt$PETCT_Metastasis_SUVmax <- tstrsplit(dt$PETCT_Metastasis, "=", fixed = FALSE, fill = NA, type.convert = TRUE)[[2]]
+  dt$PETCT_Metastasis <- tstrsplit(dt$PETCT_Metastasis, "=", fixed = FALSE, fill = NA, type.convert = TRUE)[[1]]
   
   dt[, cN_date := as.Date(cN_date, format="%Y-%m-%d", try = TRUE)]
   if (input_error_checking_mode == "Y") {
@@ -194,8 +299,16 @@ my_parsing_cN_line <- function(dt) {
   return(dt)
 }
 ```
--   `tstrsplit`함수를 사용하였고, "\\s+" 정규식을 사용하여 공백이 한번이상 반복되면 분리하였고 첫번째 `df$cN_date`라는 날짜로 하였습니다.
--   `tstrsplit`함수가 분리해 주는 두 번째는 영상검사종류로 하였습니다.
--   세 번째는 clinical N stage로 하였습니다.
--   앞서의 예시에는 없었지만 PCNA(+)가 있다면 이는 cN stage에 대해 PCNA가 시행되었고 그 결과가 양성임을 저자가 정의한 것입니다. 이를 의미합므로 한 추가 정보로 "Positive"로 파생하였습니다.
-    -   정규식에서 괄호는 그룹핑을 의미합니다. 따라서 괄호 그 자체를 표현하기 위해서는 escape 문자인 역슬래시를 두 번 사용해서 `PCNA \\(\\+\\)`를 사용하였습니다.
+
+-   `tstrsplit`함수를 사용하였고, `\\s+` 정규식을 사용하여 공백이 한번이상 반복되면 분리하였고 분리된 첫번째 결과를 `df$cN_date`라는 수술전 영상검사날짜로 파생하였습니다.
+-   `tstrsplit`함수가 분리해 주는 두 번째 결과는 `df$cN_modality`라는 영상검사종류로 파생하였습니다.
+-   세 번째는 `df$cN_stage`라는 clinical N stage로 파생하였습니다.
+-   첫번째 줄에 PCNA(+)가 있다면 이는 cN stage에서 임상적으로 림프절전이다 의심되었고, 이에 대해 PCNA가 시행되었고 그 결과가 양성임을 저자가 정의한 것입니다. 이럴 경우 df$PCNA란 열에 "Positive"란 내용으로 파생하였습니다.
+    -   정규식에서 `괄호`는 그룹핑을, `+`는 반복을 의미합니다. 따라서 `괄호` 또는 `+`를 문자 그 자체로 검색하기 위해서는 escape 문자인 역슬래시를 두 번 (`\\`) 사용해서 `PCNA\\(\\+\\)`를 사용하였습니다.
+-   첫 번째(=`cN_line`) 줄에 `&`가 있는 경우는 이후 수술 전 PETCT검사 내용이 기술괴어 있으므로 `&` 이전의 임의의 모든문자와 &와 이후의 반복되는 공백을 제거하하기 위해 `.*&\\s=` 정규식을 사용하였고 이를 `df$PETCT_part`로 파생했습니다.
+-  `df$PETCT_part` 중 공백으로 구분된 첫번째는 `\\s+` 정규식을 사용하여 `df$PETCT_date`로 파생하였습니다.
+-  `df$PETCT_part` 중 공백으로 구분된 세번째는 `df$Thyroid_SUVmax`로 파생하였습니다.
+-  `df$Thyroid_SUVmax`는 `Thyroid=`로 시작하고 `,`로 끝나는 문자열에서 `Thyroid=`와 `,`를 제거하였습니다.
+-  `df$PETCT_part` 중 공백으로 구분된 네번째는 `df$PETCT_Metastasis`로 파생하였습니다.
+-  `df$PETCT_Metastasis`는 `=`로 다시 구분하여 `=` 뒷부분은 `df$PETCT_Metastasis_SUVmax`로 파생하였습니다.
+-  `df$PETCT_Metastasis`는 `=`로 다시 구분하여 `=` 앞부분은 `df$PETCT_Metastasis`로 파생하였습니다. (전이병소의 위치에 해당합니다. 다발성이라도 가장 높른 전이병소 한 곳만 기술하도록 하였습니다).
